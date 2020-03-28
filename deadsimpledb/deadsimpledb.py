@@ -152,19 +152,25 @@ class DeadSimpleDB(object):
                     self.flush(key, name, clear_cache=clear_cache)
 
     def write(self, key, value, name='data', stype="json"):
+        """
+        saves value to file
+        TODO: add autohandling of file type
+        """
         path = self._get_path_from_key(key)
         filepath = os.path.join(path, "{}.{}".format(name, stype.lower()))
+        filepath_tmp = os.path.join(path, "{}_tmp.{}".format(name, stype.lower()))
         if stype == "json":
-            with open(filepath, 'w') as f:
+            with open(filepath_tmp, 'w') as f:
                 json.dump(value, f, ignore_nan=True, cls=NpEncoder)
         elif stype == "pkl":
-            with open(filepath, 'wb') as f:
+            with open(filepath_tmp, 'wb') as f:
                 pickle.dump(value, f)
         elif stype == "png" or stype == "jpg":
             im = PIL.Image.fromarray(value)
-            im.save(filepath)
+            im.save(filepath_tmp)
         else:
             raise Exception("File type not supported: {}".format(stype))
+        shutil.copyfile(filepath_tmp, filepath)
 
     def read(self, key, name="data", stype=None, default_value=None):
         path = self._get_path_from_key(key)

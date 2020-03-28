@@ -1,36 +1,49 @@
 # Dead Simple DB (DSDB)
+
 Dead Simple Database is a key-value database focused on storing data to the file system in a standard readable format (eg JSON, pickle, jpg, png, etc).  It's more appopriate to describe describe it as a simplified interface to the filesystem.  This library may be useful for those who want to read the data directly from the file system without the need for an intermediate data access layer/library.
 
-Version: 0.1-alpha
+Version: 0.0.1
 
 ## Features
-- Stores entries in standard format
-- Small code base - only one python file
-- Easily customizable - feel free to create different writers, S3, WebDav, etc
 
-## When to use DSDB?
-- You want a simple interface for writing data to the file system
+- Stores entries in standard/native formats
+- Small code base - **just one python file**
+- Light weight (easily add different file systems or serialization formats)
+- Schemaless
+
+## When to use DSDB
+
+- You want a simple key-value database like interface for writing data to the file system
 
 ## Limitations
-- No indexes
-- No threading or Multi processing support
+
+- No indexes (Yet)
+- No threading or Multi processing support (Yet)
 
 ## Usage
+
+The below configuration will store database files in the ```ddb``` directory.
+
 ```python
-db = DeadSimpleDB("testdb")
 
+# Create database object
+db = DeadSimpleDB(root_path="ddb")
+
+# Add some dictionary data and use json (default storage type)
 db.save(['entity',1],value={'value':1000})
-db.save(['entity',2],value={'value':2000})
-db.save(['entity',3],value={'value':3000}.flush=True,clear_cache=True)
+db.save(['entity',2],value={'value':"Hello"})
+db.save(['entity',3],value={'value':"World"}.flush=True,clear_cache=True)
 
-db.get(['entity',3])
-
+# Add a numpy entry and store in pickel format
 db.save(['stats',1],value=np.random.rand(3,3), stype='pkl')
+
+# Save Entries to Disk
 db.flush_all()
 
+# retrieve an entry
+stored_value = db.get(['entity',3])
 ```
 
 ## Requirements
 
 - simplejson
-- pickle
