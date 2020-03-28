@@ -20,6 +20,12 @@ Version: 0.0.1
 - No indexes (Yet)
 - No threading or Multi processing support (Yet)
 
+## Installation
+
+```
+pip install git+https://github.com/bkusenda/deadsimpledb
+```
+
 ## Usage
 
 The below configuration will store database files in the ```ddb``` directory.

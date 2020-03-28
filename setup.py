@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name="Dead SimpleDB",
+    name="deadsimpledb",
     version="0.0.1",
     author="Brandyn Kusenda",
     author_email="bkusenda@gmail.com",
