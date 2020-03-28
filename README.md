@@ -1,5 +1,5 @@
 # Dead Simple DB (DSDB)
-Dead Simple Database is a key-value database focused on storing data to the file system in a standard readable format (eg JSON, pickle, CSV, jpg, png, numpy etc).  It's more appopriate to describe describe it as a simplified interface to the filesystem.  This library may be useful for those who want to read the data directly from the file system without the need for an intermediate data access layer/library.
+Dead Simple Database is a key-value database focused on storing data to the file system in a standard readable format (eg JSON, pickle, jpg, png, etc).  It's more appopriate to describe describe it as a simplified interface to the filesystem.  This library may be useful for those who want to read the data directly from the file system without the need for an intermediate data access layer/library.
 
 Version: 0.1-alpha
 
