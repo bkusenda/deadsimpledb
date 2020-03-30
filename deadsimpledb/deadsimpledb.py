@@ -14,7 +14,7 @@ SUPPORTED_FILE_TYPES = ['png', 'jpg', 'pkl', 'json']
 
 class JSONEncoderDefault(json.JSONEncoder):
 
-    def default(self, obj):
+    def default(self, obj): # pylint: disable=E0202
         if isinstance(obj, np.integer):
             return int(obj)
         elif isinstance(obj, np.floating):
