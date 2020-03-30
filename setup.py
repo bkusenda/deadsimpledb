@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="deadsimpledb",
-    version="0.0.1",
+    version="0.0.2",
     author="Brandyn Kusenda",
     author_email="bkusenda@gmail.com",
     description="A key value database like interface for storing data to the file system.",
