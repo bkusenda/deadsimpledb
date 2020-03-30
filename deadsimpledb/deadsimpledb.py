@@ -12,7 +12,7 @@ import simplejson as json
 
 SUPPORTED_FILE_TYPES = ['png', 'jpg', 'pkl', 'json']
 
-class NpEncoder(json.JSONEncoder):
+class JSONEncoderDefault(json.JSONEncoder):
 
     def default(self, obj):
         if isinstance(obj, np.integer):
@@ -20,9 +20,21 @@ class NpEncoder(json.JSONEncoder):
         elif isinstance(obj, np.floating):
             return float(obj)
         elif isinstance(obj, np.ndarray):
-            return obj.tolist()
+            if obj.size() > 1000:
+                return "REDACTED: NUMPY OBJ OF SIZE {} TOO LARGE".format(obj.size())
+            else:
+                return obj.tolist()
         else:
-            return super(NpEncoder, self).default(obj)
+            return super(JSONEncoderDefault, self).default(obj)
+
+
+class JSONDecoderDefault(json.JSONDecoder):
+
+    def __init__(self, *args, **kwargs):
+        json.JSONDecoder.__init__(self, object_hook=self.object_hook, *args, **kwargs)
+
+    def object_hook(self, obj): # pylint: disable=E0202
+        return obj
 
 def key_as_str(key):
     return ",".join([str(k) for k in key])
@@ -36,8 +48,11 @@ def get_filetype(filepath_prefix):
             return ft
     return None
 
-class DeadSimpleDB(object):
-    def __init__(self, root_path=None, overwrite=False):
+class DeadSimpleDB:
+    def __init__(self, root_path=None, overwrite=False, json_encoder = JSONEncoderDefault, json_decoder = JSONDecoderDefault ):
+        self.json_encoder = json_encoder
+        self.json_decoder = json_decoder
+
         if root_path is None:
             root_path = "deadsimpledb"
 
@@ -161,7 +176,7 @@ class DeadSimpleDB(object):
         filepath_tmp = os.path.join(path, "{}_tmp.{}".format(name, stype.lower()))
         if stype == "json":
             with open(filepath_tmp, 'w') as f:
-                json.dump(value, f, ignore_nan=True, cls=NpEncoder)
+                json.dump(value, f, ignore_nan=True, cls=self.json_encoder)
         elif stype == "pkl":
             with open(filepath_tmp, 'wb') as f:
                 pickle.dump(value, f)
@@ -188,7 +203,7 @@ class DeadSimpleDB(object):
 
         if stype.lower() == "json":
             with open(filepath, 'r') as f:
-                value = json.load(f)
+                value = json.load(f, cls = self.json_decoder)
         elif stype == "pkl":
             with open(filepath, 'rb') as f:
                 value = pickle.load(f)
