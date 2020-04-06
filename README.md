@@ -13,11 +13,6 @@ Dead Simple Database is a key-value database focused on storing data to the file
 
 - You want a simple key-value database like interface for writing data to the file system
 
-## Limitations
-
-- No indexes (Yet)
-- No threading or Multi processing support (Yet)
-
 ## Installation
 
 ```
@@ -34,18 +29,18 @@ The below configuration will store database files in the ```ddb``` directory.
 db = DeadSimpleDB(root_path="ddb")
 
 # Add some dictionary data and use json (default storage type)
-db.save(['entity',1],value={'value':1000})
-db.save(['entity',2],value={'value':"Hello"})
-db.save(['entity',3],value={'value':"World"}.flush=True,clear_cache=True)
+db.save(('entity',1),value={'value':1000})
+db.save(('entity',2),value={'value':"Hello"})
+db.save(('entity',3),value={'value':"World"},clear_cache=True)
 
 # Add a numpy entry and store in pickel format
-db.save(['stats',1],value=np.random.rand(3,3), stype='pkl')
+db.save(('stats',1),value=np.random.rand(3,3), stype='pkl')
 
 # Save Entries to Disk
 db.flush_all()
 
 # retrieve an entry
-stored_value = db.get(['entity',3])
+stored_value = db.get(('entity',1))
 ```
 
 ## Requirements
