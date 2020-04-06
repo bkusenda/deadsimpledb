@@ -1,1 +1,1 @@
-from .deadsimpledb import DeadSimpleDB, key_as_str, str_as_key
+from .deadsimpledb import DeadSimpleDB, format_key

@@ -1,27 +1,21 @@
 import numpy
-from deadsimpledb import DeadSimpleDB, key_as_str, str_as_key
+from deadsimpledb import DeadSimpleDB, format_key
 import unittest
-
+import time
 
 class TestMain(unittest.TestCase):
 
     def test_save_flush_get(self):
         dsdb = DeadSimpleDB("testdb")
 
-        key = ["entry", 1]
+        key = ("entry", 1)
         value = {'value': 10}
         dsdb.save(key, value=value)
-        dsdb.flush(key)
         value2 = dsdb.get(key)
-        dsdb.delete(key)
-        assert(value['value'] == value2['value'])
 
-    def test_string_functions(self):
-        key = ['123', 1, "yes"]
-        key_s = key_as_str(key)
-        key2 = str_as_key(key_s)
-        key_s2 = key_as_str(key2)
-        assert(key_s == key_s2)
+        dsdb.delete(key)
+        dsdb.close()
+        assert(value['value'] == value2['value'])
 
     def test_multiple_key(self):
         dsdb = DeadSimpleDB("testdb")
@@ -30,61 +24,78 @@ class TestMain(unittest.TestCase):
 
         for i in range(3):
             print("-------------------")
-            key = ["entryx", i]
+            key = ("entryx", i)
             dsdb.save(key, name=name, value={'value': 10 * i})
-            dsdb.flush(key, name=name, clear_cache=clear_cache)
             dsdb.delete(key, name=name)
             assert(dsdb.get(key, name=name) is None)
+        dsdb.close()
 
     def test_multiple_name(self):
         dsdb = DeadSimpleDB("testdb")
-        key = ["test_multiple", 1]
-        clear_cache = False
+        key = ("test_multiple", 1)
 
-        for i in range(100):
+        for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
-            dsdb.flush(key, name=i, clear_cache=clear_cache)
             dsdb.delete(key, name=i)
             assert(dsdb.get(key, name=i) is None)
+        dsdb.close()
+
+    def test_multiple_name_no_delete(self):
+        dsdb = DeadSimpleDB("testdb")
+        key = ("test_multiple", 1)
+
+        for i in range(10):
+            dsdb.save(key, name=i, value={'value': 10 * i})
+        print("Done saving")
+        dsdb.close()
+        print("Done writing")
+        dsdb = DeadSimpleDB("testdb")
+        assert(len(dsdb.list(key)[0])==10)
+        print("done listing")
+
 
     def test_append_list_pkl(self):
         dsdb = DeadSimpleDB("testdb")
 
-        for i in range(100):
-            key = ["entry2", i]
+        for i in range(10):
+            key = ("entry2", i)
             dsdb.append_to_list(key, name="test6",
                                 value=numpy.random.rand(3, 3), stype='pkl')
 
         dsdb.flush_all()
 
-        for i in range(100):
-            key = ["entry2", i]
+        for i in range(10):
+            key = ("entry2", i)
             d = dsdb.get(key, name="test6")
             assert(d is not None)
 
-        for i in range(100):
-            key = ["entry2", i]
+        for i in range(10):
+            key = ("entry2", i)
             dsdb.delete(key, name="test6")
             assert(d is not None)
+        dsdb.close()
 
     def test_index_1(self):
         dsdb = DeadSimpleDB("testdb")
-        key = ["hi", 123, "test_multiple", 1]
-        clear_cache = False
+        key = ("hi", 123, "test_multiple", 1)
+        # clear_cache = False
 
-        for i in range(100):
+        for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
-        key = ["hi", 1234, "test_multiple", 1]
-        clear_cache = False
 
-        for i in range(100):
+        key = ("hi", 1234, "test_multiple", 1)
+
+        for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
 
         print(dsdb.list(key))
         for i in range(0, len(key)):
             print(dsdb.list(key[:-(i+1)]))
-
         dsdb.flush_all()
 
         dsdb = DeadSimpleDB("testdb")
-        assert(len(dsdb.list(["hi", 123, "test_multiple", 1])[0]) == 100)
+        item_count = len(dsdb.list(key=("hi", 123, "test_multiple", 1))[0])
+        print("item count {}".format(item_count))
+        dsdb.close()
+
+        assert(item_count == 10)
