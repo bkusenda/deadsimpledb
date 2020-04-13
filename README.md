@@ -4,14 +4,20 @@ Dead Simple Database is a key-value database focused on storing data to the file
 
 ## Features
 
-- Stores entries in standard/native formats
-- Small code base - **just one python file**
+- Fast writes, file writing is performed asyncronously
+- Stores entries in standard/native formats (json,pickle)
+- Small code base and pure python - **just one python file**
 - Light weight (easily add different file systems or serialization formats)
 - Schemaless
+
+## Limitations
+
+- Does not support multiple workers should writing the same entries
 
 ## When to use DSDB
 
 - You want a simple key-value database like interface for writing data to the file system
+- Structured logging
 
 ## Installation
 

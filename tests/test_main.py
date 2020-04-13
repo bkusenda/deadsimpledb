@@ -12,9 +12,6 @@ class TestMain(unittest.TestCase):
         value = {'value': 10}
         dsdb.save(key, value=value)
         value2 = dsdb.get(key)
-
-        dsdb.delete(key)
-        dsdb.close()
         assert(value['value'] == value2['value'])
 
     def test_multiple_key(self):
@@ -26,9 +23,7 @@ class TestMain(unittest.TestCase):
             print("-------------------")
             key = ("entryx", i)
             dsdb.save(key, name=name, value={'value': 10 * i})
-            dsdb.delete(key, name=name)
-            assert(dsdb.get(key, name=name) is None)
-        dsdb.close()
+            assert(dsdb.get(key, name=name) is not None)
 
     def test_multiple_name(self):
         dsdb = DeadSimpleDB("testdb")
@@ -36,21 +31,25 @@ class TestMain(unittest.TestCase):
 
         for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
-            dsdb.delete(key, name=i)
-            assert(dsdb.get(key, name=i) is None)
-        dsdb.close()
+            del_result = dsdb.get(key, name=i)
+            print(del_result)
+            assert(del_result is not None)
 
     def test_multiple_name_no_delete(self):
         dsdb = DeadSimpleDB("testdb")
-        key = ("test_multiple", 1)
+        key = ("test_multiple2", 1)
 
         for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
         print("Done saving")
-        dsdb.close()
+        dsdb.flush_all()
         print("Done writing")
         dsdb = DeadSimpleDB("testdb")
-        assert(len(dsdb.list(key)[0])==10)
+        items= dsdb.list(key)[0]
+        print("count {}".format(len(items)))
+        print(items)
+
+        assert(len(items)==10)
         print("done listing")
 
 
@@ -69,21 +68,31 @@ class TestMain(unittest.TestCase):
             d = dsdb.get(key, name="test6")
             assert(d is not None)
 
+
+    def test_append_list_csv(self):
+        dsdb = DeadSimpleDB("testdb")
+
         for i in range(10):
-            key = ("entry2", i)
-            dsdb.delete(key, name="test6")
+            key = ("entrycsv", i)
+            dsdb.append_to_list(key, name="test6",
+                                value=['abc',1,2,3], stype='csv')
+
+        dsdb.flush_all()
+
+        for i in range(10):
+            key = ("entrycsv", i)
+            d = dsdb.get(key, name="test6")
             assert(d is not None)
-        dsdb.close()
 
     def test_index_1(self):
         dsdb = DeadSimpleDB("testdb")
-        key = ("hi", 123, "test_multiple", 1)
+        key = ("hi", 123, "test_multiple5", 1)
         # clear_cache = False
 
         for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
 
-        key = ("hi", 1234, "test_multiple", 1)
+        key = ("hi", 1234, "test_multiple5", 1)
 
         for i in range(10):
             dsdb.save(key, name=i, value={'value': 10 * i})
@@ -94,8 +103,7 @@ class TestMain(unittest.TestCase):
         dsdb.flush_all()
 
         dsdb = DeadSimpleDB("testdb")
-        item_count = len(dsdb.list(key=("hi", 123, "test_multiple", 1))[0])
+        item_count = len(dsdb.list(key=("hi", 123, "test_multiple5", 1))[0])
         print("item count {}".format(item_count))
-        dsdb.close()
 
         assert(item_count == 10)
