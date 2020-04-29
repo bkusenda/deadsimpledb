@@ -5,13 +5,16 @@ import pickle
 import shutil
 import time
 from typing import Any, Dict, List, Tuple
-
+import copy
 import numpy as np
 import PIL.Image
 import simplejson as json
 from os.path import isfile, join
 import threading
+from multiprocessing import Process
+# from multiprocessing import SimpleQueue as Queue
 from multiprocessing import Queue
+# from queue import SimpleQueue as Queue
 SUPPORTED_FILE_TYPES = ['png', 'jpg', 'pkl', 'json', 'csv']
 
 class JSONEncoderDefault(json.JSONEncoder):
@@ -54,6 +57,20 @@ def get_filetype(filepath_prefix):
             return ft
     return None
 
+def path_to_key_name_stype(root_path, full_file_path, sep="/"):
+    if not root_path.endswith(sep):
+        root_path = root_path + sep
+    if len(root_path)>1:
+        full_file_path = full_file_path.replace(root_path,"",1)
+    if full_file_path.startswith(sep):
+        full_file_path=full_file_path[1:]
+    fpath, stype = os.path.splitext(full_file_path)
+    path_parts = fpath.split(sep)
+    name = path_parts[-1]
+    path_parts = path_parts[:-1]
+    key = format_key(path_parts)
+    return key, name, stype[1:]
+
 
 class DeadSimpleDB:
 
@@ -63,7 +80,7 @@ class DeadSimpleDB:
         json_encoder=JSONEncoderDefault, 
         json_decoder=JSONDecoderDefault,
         read_only=False,
-        use_write_thread=False,
+        use_write_thread=True,
         check_file_last_updated = True): ## this is a write optmization
 
         self.json_encoder = json_encoder
@@ -96,9 +113,7 @@ class DeadSimpleDB:
         self.use_write_thread = use_write_thread
 
         if self.use_write_thread:
-            print("Using Write Thread")
             self.write_queue= Queue()
-
             self.writer_thread = threading.Thread(target=self._process_write_requests, args=())
             self.writer_thread.daemon = True
             self.writer_thread.start()
@@ -106,26 +121,23 @@ class DeadSimpleDB:
             print("Not using write thread")
 
     def _process_write_requests(self):
-        while self.running:
-            items = {}
-            qsize = self.write_queue.qsize()
-            performed_writes = False
-            while (qsize > 0 and qsize < 1000):
-                key,name,clear_cache = self.write_queue.get()
-                items[(key,name)] = clear_cache
-                qsize = self.write_queue.qsize()
-                performed_writes = True
-
-            for key_name,clear_cache in items.items():
-                key,name = key_name
+        print("Write Thread initialized")
+        running = True
+        
+        t = threading.currentThread()
+        while running:
+            try:
+                key,name,value,stype = self.write_queue.get(timeout=3)
                 try:
-                    self._flush_sync(key,name,clear_cache)
+                    self._write(key,value,name,stype)
                 except Exception as e:
-                    print("Exception while writing for key:{}, name: {} --- \n{}".format(key,name,e))
-            if performed_writes:
-                time.sleep(0.1)
-
-    
+                    print("Exception while writing for root_path:{}, key:{}, name: {} --- {}".format(self.root_path,key,name,e))
+            except Exception as e:
+                pass
+            running = getattr(t, "running", True)
+            if not running and not self.write_queue.empty():
+                running = True
+                
     def check_path(self, path):
         if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
@@ -357,13 +369,36 @@ class DeadSimpleDB:
                 if len(key) > 1:
                     self.delete(key[:-1],name=None)
 
+    def prepvalue(self,value):
+        return value
+
     def _flush(self, key, name='data', clear_cache=False):
         if self.read_only:
-            return 
-        if self.use_write_thread:
-            self.write_queue.put((key,name,clear_cache))
+            return "not flushing {} {}".format(key,name)
+        elif self.use_write_thread:
+            # self._write_to_q((key,name,clear_cache))
+            if self.read_only:
+                return 
+            items = self.data_store[key]
+            entry = items.get(name)
+            if entry is not None:
+                value = entry['value']
+            if clear_cache:
+                entry['value'] = None
+            # self._write(key, name=name, value=value, stype=entry['stype'])
+            self.write_queue.put((key,name,self.prepvalue(value),entry['stype']))
         else:
             self._flush_sync(key,name,clear_cache)
+
+    def delayed_write(self,key,name,value,stype):
+        if self.use_write_thread:
+            self.write_queue.put((key,name,self.prepvalue(value),stype))
+        else:
+            raise Exception("Delayed write not supported with use_write_thread=False")
+
+    def delayed_write_by_path(self,value,path):
+        key,name,stype = path_to_key_name_stype(self.root_path, path)
+        self.delayed_write(key,name,value,stype)
 
     def _flush_sync(self, key, name='data', clear_cache=False):
         if self.read_only:
@@ -375,7 +410,17 @@ class DeadSimpleDB:
             if clear_cache:
                 entry['value'] = None
             self._write(key, name=name, value=value, stype=entry['stype'])
-            
+
+    async def _flush_async(self, key, name='data', clear_cache=False):
+        if self.read_only:
+            return 
+        items = self.data_store[key]
+        entry = items.get(name)
+        if entry is not None:
+            value = entry['value']
+            if clear_cache:
+                entry['value'] = None
+            self._write(key, name=name, value=value, stype=entry['stype'])         
 
     def _get_path_from_key(self, key):
         if type(key) is tuple:
@@ -386,6 +431,14 @@ class DeadSimpleDB:
         self.check_path(path)
         return path
         
+    def close(self):
+        if self.read_only:
+            return 
+        if self.use_write_thread:
+            self.writer_thread.running = False
+            self.writer_thread.join()
+        else:
+            return
 
     def flush_all(self):
         if self.read_only:
@@ -395,6 +448,7 @@ class DeadSimpleDB:
             while not flushed:
                 if self.write_queue.qsize() == 0:
                     return
+            self.writer_thread.join()
         else:
             return
                     
@@ -430,7 +484,8 @@ class DeadSimpleDB:
                                             quoting=csv.QUOTE_MINIMAL)
                     writer.writerows(value)
             else:
-                raise Exception("File type not supported: {}".format(stype))
+                with open(filepath_tmp, 'w') as f:
+                    f.write(value)
             shutil.copyfile(filepath_tmp, filepath)
             os.remove(filepath_tmp)
         except Exception as e:
@@ -460,24 +515,27 @@ class DeadSimpleDB:
             stype = get_filetype(filepath_prefix)
             if stype is None:
                 return None, None
-
         filepath = filepath_prefix + "." + stype.lower()
+        try:
+            if not os.path.isfile(filepath):
+                return default_value, stype
 
-        if not os.path.isfile(filepath):
-            return default_value, stype
-
-        if stype.lower() == "json":
-            with open(filepath, 'r') as f:
-                value = json.load(f, cls=self.json_decoder)
-        elif stype == "pkl":
-            with open(filepath, 'rb') as f:
-                value = pickle.load(f)
-        elif stype == "csv":
-            value = []
-            with open(filepath, 'r') as f:
-                reader = csv.reader(f, delimiter='\t', quotechar='|')
-                for line in reader:
-                    value.append(line)
-        else:
-            raise Exception("Unsupported format {}".format(stype))
+            if stype.lower() == "json":
+                with open(filepath, 'r') as f:
+                    value = json.load(f, cls=self.json_decoder)
+            elif stype == "pkl":
+                with open(filepath, 'rb') as f:
+                    value = pickle.load(f)
+            elif stype == "csv":
+                value = []
+                with open(filepath, 'r') as f:
+                    reader = csv.reader(f, delimiter='\t', quotechar='|')
+                    for line in reader:
+                        value.append(line)
+            else:
+                raise Exception("Unsupported format {}".format(stype))
+        except Exception as e:
+            print("Error reading key:{}, name:{}, stype:{}".format(key,name,stype))
+            print("Exception = {}".format(e))
+            return None,None
         return value, stype
