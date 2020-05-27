@@ -4,7 +4,7 @@ Dead Simple Database is a key-value database focused on storing data to the file
 
 ## Features
 
-- Fast writes, file writing is performed asyncronously
+- Fast writes, file writing is performed asynchronously
 - Stores entries in standard/native formats (json,pickle)
 - Small code base and pure python - **just one python file**
 - Light weight (easily add different file systems or serialization formats)
